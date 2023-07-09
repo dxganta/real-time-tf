@@ -3,9 +3,15 @@ from pylsl import StreamInlet, resolve_byprop
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import fft, ifft
+from collections import deque
+
 
 srate = 256
-time_to_wait = 1 # in seconds
+# the total time window for which to calculate the time-frequency plot
+show_time_window = 2 # in seconds,
+
+# the time window to update at each frame to the new data and calculate time frequency
+update_time_window = 0.2 # in seconds
 
 class MuseLsl():
     def __init__(self):
@@ -40,25 +46,28 @@ class MuseLsl():
             raise RuntimeError('Must be connected to EEG stream to read data.')
         
         try:
-            temp_data = []
+            nData = round(srate*show_time_window)
+            temp_data = deque([[0,0,0,0,0] for _ in range(nData)], maxlen=nData)
             counter = 0
             loops = 0  # to keep track of the number of loops total for the times array
 
 
-            nData = round(srate*time_to_wait)
             cmwX, nKern, frex = get_cmwX(nData)
             while True:
                
                 sample, timestamp = self.inlet.pull_sample()
                 
-                if counter != nData:
+                if counter < update_time_window * srate:
+                    temp_data.popleft()
                     temp_data.append(sample)
                     counter += 1
                 else:
-                    process_new_data(np.array(temp_data)[:,:4].T, cmwX, nKern, frex, loops)
-                    temp_data = []
+                    
+                    data = np.array(temp_data)[:,:4].T
+                    process_new_data(data, cmwX, nKern, frex, loops)
+                    
                     counter = 0
-                    loops += time_to_wait
+                    loops += update_time_window
 
         except KeyboardInterrupt:
             print('Stopping data collection.')
@@ -74,7 +83,7 @@ fig.show()
 fig.canvas.draw()
 
 def process_new_data(new_data, cmwX, nKern, frex, loops=0):
-    times = np.linspace(loops, time_to_wait+loops, new_data.shape[1]) 
+    times = np.linspace(loops, show_time_window+loops, new_data.shape[1]) 
 
     # Perform the time-frequency analysis on new_data
     tf_data = time_frequency(new_data, cmwX, nKern)
@@ -132,7 +141,6 @@ def time_frequency(data, cmwX, nKern, channel_labels=None):
 
         returns average time frequency plot and frequency range
     '''
-    
     assert data.shape[0] < data.shape[1], "data shape incorrect"
     assert channel_labels is None or len(channel_labels) == data.shape[0], "channel_labels must be of same length as number of channels"
 
