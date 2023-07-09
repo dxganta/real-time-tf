@@ -7,7 +7,7 @@ import argparse
 import sys
 
 from .time_frequency import time_frequency, get_cmwX
-from .constants import srate
+from .constants import srate, channel_labels
 
 
 class MuseLsl():
@@ -38,7 +38,7 @@ class MuseLsl():
             self.inlet.close_stream()
             print('Disconnected from EEG stream.')
 
-    def read_data(self, show_time_window, update_time_window):
+    def read_data(self, show_time_window, update_time_window, channel):
         if self.inlet is None:
             raise RuntimeError('Must be connected to EEG stream to read data.')
         
@@ -61,7 +61,7 @@ class MuseLsl():
                 else:
                     
                     data = np.array(temp_data)[:,:4].T
-                    process_new_data(data, cmwX, nKern, frex, show_time_window, loops)
+                    process_new_data(data, cmwX, nKern, frex, show_time_window, channel, loops )
                     
                     counter = 0
                     loops += update_time_window
@@ -79,11 +79,29 @@ plt.ion()
 fig.show()
 fig.canvas.draw()
 
-def process_new_data(new_data, cmwX, nKern, frex,show_time_window, loops=0):
+def filter_channel(tf , channel):
+    '''
+        tf must be of shape channels x time
+
+        returns tf array and title
+    '''
+    if channel != 'avg':
+        assert int(channel) < 4, 'Channel numbers range from 0 to 3. Please input a valid number'
+    
+    match channel:            
+        case 'avg':
+            return np.mean(tf, axis=0), 'Average Power Spectrum over all channels'
+        case _ :
+            return tf[int(channel), :], f'Power Spectrum across channel {channel_labels[int(channel)]}'
+
+def process_new_data(new_data, cmwX, nKern, frex, show_time_window,channel, loops=0):
     times = np.linspace(loops, show_time_window+loops, new_data.shape[1]) 
 
     # Perform the time-frequency analysis on new_data
     tf_data = time_frequency(new_data, cmwX, nKern)
+
+    tf_data, title = filter_channel(tf_data, channel)
+
     
     # Clear the current plot
     ax.clear()
@@ -92,7 +110,7 @@ def process_new_data(new_data, cmwX, nKern, frex,show_time_window, loops=0):
     ax.contourf(times, frex, tf_data, 40, cmap='jet') 
     ax.set_xlabel('Time (s)')
     ax.set_ylabel('Frequencies (Hz)')
-    ax.set_title('Real-Time Power Spectrum')
+    ax.set_title(title)
     
     # Redraw the figure
     fig.canvas.draw()
@@ -105,16 +123,18 @@ def main():
                         help="The total time window for which to calculate the time-frequency plot.")
     parser.add_argument("--update_time_window", type=float, default=0.2,
                         help="The time window to update at each frame to the new data and calculate time frequency.")
+    parser.add_argument("--channel", type=str, default='avg',
+                        help="The channel for which to plot the time-frequency plot. Plots the average across all channels by default.")
     args = parser.parse_args()
 
-    run_muse(args.show_time_window, args.update_time_window)
+    run_muse(args.show_time_window, args.update_time_window, args.channel)
 
 
-def run_muse(show_time_window, update_time_window):
+def run_muse(show_time_window, update_time_window, channel):
     muse_lsl = MuseLsl()
     try:
         muse_lsl.connect()
-        muse_lsl.read_data(show_time_window, update_time_window)
+        muse_lsl.read_data(show_time_window, update_time_window, channel)
     except Exception as e:
         print(f'An error occurred: {e}')
     finally:

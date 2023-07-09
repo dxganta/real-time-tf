@@ -2,7 +2,7 @@ import numpy as np
 from scipy.fft import fft, ifft
 from .constants import srate
 
-def time_frequency(data, cmwX, nKern, channel_labels=None):
+def time_frequency(data, cmwX, nKern):
     ''''
     Function to calculate time-frequency representation of multichannel data.
 
@@ -23,7 +23,6 @@ def time_frequency(data, cmwX, nKern, channel_labels=None):
         This is the average power across all channels.
     '''
     assert data.shape[0] < data.shape[1], "data shape incorrect"
-    assert channel_labels is None or len(channel_labels) == data.shape[0], "channel_labels must be of same length as number of channels"
 
     # set up convolution parameters
     nData   = data.shape[1]
@@ -44,8 +43,6 @@ def time_frequency(data, cmwX, nKern, channel_labels=None):
         as_ = as_[:, halfwav: -halfwav]
         tf[chani, :, :] = np.abs(as_) ** 2
         
-    tf = np.mean(tf, axis=0)
-
     return tf
 
 
