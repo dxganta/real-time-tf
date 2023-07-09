@@ -32,6 +32,14 @@ The time-frequency plot is shown of 1 second EEG data and the plot is updated ev
 realtime_tf --show_time_window NEW_VALUE --update_time_window NEW_VALUE
 ```
 
+The muse headset generally has 4 EEG electrodes/channels ('TP9', 'AF7', 'AF8', 'TP10'). By default the time-frequency plot average across all 4 channels is shown. But you can output only the time-frequency plot for a specific channel using
+
+```
+realtime_tf --channel 0
+```
+
+This will output the tf plot for channel 0 which is 'TP9'.
+
 ## References
 
 https://www.udemy.com/course/solved-challenges-ants/
