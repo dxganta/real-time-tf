@@ -16,6 +16,13 @@ class MuseLsl():
         self.retry_attempts = 5
         self.retry_delay = 2  # seconds
 
+    # create a figure
+        self.fig = plt.figure()
+        self.ax = self.fig.add_subplot(111)
+        plt.ion()
+        self.fig.show()
+        self.fig.canvas.draw()
+
     def connect(self):
         for i in range(self.retry_attempts):
             try:
@@ -38,7 +45,7 @@ class MuseLsl():
             self.inlet.close_stream()
             print('Disconnected from EEG stream.')
 
-    def read_data(self, show_time_window, update_time_window, channel):
+    def read_and_plot_data(self, show_time_window, update_time_window, channel):
         if self.inlet is None:
             raise RuntimeError('Must be connected to EEG stream to read data.')
         
@@ -61,7 +68,7 @@ class MuseLsl():
                 else:
                     
                     data = np.array(temp_data)[:,:4].T
-                    process_new_data(data, cmwX, nKern, frex, show_time_window, channel, loops )
+                    self.plot_data(data, cmwX, nKern, frex, show_time_window, channel, loops )
                     
                     counter = 0
                     loops += update_time_window
@@ -71,50 +78,42 @@ class MuseLsl():
         finally:
             self.disconnect()
 
+    def _filter_channel(self, tf , channel):
+        '''
+            tf must be of shape channels x time
 
-# create a figure
-fig = plt.figure()
-ax = fig.add_subplot(111)
-plt.ion()
-fig.show()
-fig.canvas.draw()
+            returns tf array and title
+        '''
+        if channel != 'avg':
+            assert int(channel) < 4, 'Channel numbers range from 0 to 3. Please input a valid number'
+        
+        match channel:            
+            case 'avg':
+                return np.mean(tf, axis=0), 'Average Power Spectrum over all channels'
+            case _ :
+                return tf[int(channel), :], f'Power Spectrum across channel {channel_labels[int(channel)]}'
+            
+    def plot_data(self, new_data, cmwX, nKern, frex, show_time_window,channel, loops=0):
+        times = np.linspace(loops, show_time_window+loops, new_data.shape[1]) 
 
-def filter_channel(tf , channel):
-    '''
-        tf must be of shape channels x time
+        # Perform the time-frequency analysis on new_data
+        tf_data = time_frequency(new_data, cmwX, nKern)
 
-        returns tf array and title
-    '''
-    if channel != 'avg':
-        assert int(channel) < 4, 'Channel numbers range from 0 to 3. Please input a valid number'
-    
-    match channel:            
-        case 'avg':
-            return np.mean(tf, axis=0), 'Average Power Spectrum over all channels'
-        case _ :
-            return tf[int(channel), :], f'Power Spectrum across channel {channel_labels[int(channel)]}'
+        tf_data, title = self._filter_channel(tf_data, channel)
 
-def process_new_data(new_data, cmwX, nKern, frex, show_time_window,channel, loops=0):
-    times = np.linspace(loops, show_time_window+loops, new_data.shape[1]) 
-
-    # Perform the time-frequency analysis on new_data
-    tf_data = time_frequency(new_data, cmwX, nKern)
-
-    tf_data, title = filter_channel(tf_data, channel)
-
-    
-    # Clear the current plot
-    ax.clear()
-    
-    # Update the plot with the new time-frequency representation
-    ax.contourf(times, frex, tf_data, 40, cmap='jet') 
-    ax.set_xlabel('Time (s)')
-    ax.set_ylabel('Frequencies (Hz)')
-    ax.set_title(title)
-    
-    # Redraw the figure
-    fig.canvas.draw()
-    plt.pause(0.01)  # pause a bit so that plots are updated
+        
+        # Clear the current plot
+        self.ax.clear()
+        
+        # Update the plot with the new time-frequency representation
+        self.ax.contourf(times, frex, tf_data, 40, cmap='jet') 
+        self.ax.set_xlabel('Time (s)')
+        self.ax.set_ylabel('Frequencies (Hz)')
+        self.ax.set_title(title)
+        
+        # Redraw the figure
+        self.fig.canvas.draw()
+        plt.pause(0.01)  # pause a bit so that plots are updated
 
 
 def main():
@@ -134,7 +133,7 @@ def run_muse(show_time_window, update_time_window, channel):
     muse_lsl = MuseLsl()
     try:
         muse_lsl.connect()
-        muse_lsl.read_data(show_time_window, update_time_window, channel)
+        muse_lsl.read_and_plot_data(show_time_window, update_time_window, channel)
     except Exception as e:
         print(f'An error occurred: {e}')
     finally:

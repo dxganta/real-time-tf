@@ -1,3 +1,10 @@
 Metadata-Version: 2.1
 Name: real-time-tf
 Version: 0.1
+Summary: Real time time frequency plotting of EEG data from the Muse headset.
+Home-page: https://github.com/dxganta/real-time-tf
+Author: Diganta Kalita
+Author-email: digantakalita.ai@gmail.com
+License: BSD (3-clause)
+Keywords: muse time-frequency eeg fft neuroscience
+License-File: LICENSE
