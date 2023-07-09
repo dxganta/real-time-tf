@@ -5,6 +5,8 @@ import numpy as np
 from scipy.fft import fft, ifft
 
 srate = 256
+time_to_wait = 1 # in seconds
+
 class MuseLsl():
     def __init__(self):
         self.inlet = None
@@ -38,9 +40,10 @@ class MuseLsl():
             raise RuntimeError('Must be connected to EEG stream to read data.')
         
         try:
-            time_to_wait = 0.5 # in seconds
             temp_data = []
             counter = 0
+            loops = 0  # to keep track of the number of loops total for the times array
+
 
             nData = round(srate*time_to_wait)
             cmwX, nKern, frex = get_cmwX(nData)
@@ -52,9 +55,10 @@ class MuseLsl():
                     temp_data.append(sample)
                     counter += 1
                 else:
-                    process_new_data(np.array(temp_data)[:,:4].T, cmwX, nKern, frex)
+                    process_new_data(np.array(temp_data)[:,:4].T, cmwX, nKern, frex, loops)
                     temp_data = []
                     counter = 0
+                    loops += time_to_wait
 
         except KeyboardInterrupt:
             print('Stopping data collection.')
@@ -69,12 +73,10 @@ plt.ion()
 fig.show()
 fig.canvas.draw()
 
-def process_new_data(new_data, cmwX, nKern, frex):
-    times = np.linspace(0,1, new_data.shape[1]) # lets just keep it constant for now, TODO: make real time later
+def process_new_data(new_data, cmwX, nKern, frex, loops=0):
+    times = np.linspace(loops, time_to_wait+loops, new_data.shape[1]) 
 
     # Perform the time-frequency analysis on new_data
-    # This could be your `time_frequency` function, but modified to return
-    # the time-frequency representation rather than plotting it
     tf_data = time_frequency(new_data, cmwX, nKern)
     
     # Clear the current plot
@@ -91,22 +93,21 @@ def process_new_data(new_data, cmwX, nKern, frex):
     plt.pause(0.01)  # pause a bit so that plots are updated
 
 
-def get_cmwX(nData, freqrange=[1,45], numfrex=43):
+def get_cmwX(nData, freqrange=[1,40], numfrex=42):
     '''
         returns cmwX of shape frequency x nConv
     '''
+    pi = np.pi
     wavtime = np.arange(-2,2-1/srate,1/srate)
     nKern = len(wavtime)
     nConv = nData + nKern - 1
     frex = np.linspace(freqrange[0],freqrange[1],numfrex)
    # create complex morlet wavelets array
     cmwX = np.zeros((numfrex, nConv), dtype=complex)
+
+    # number of cycles
+    numcyc = np.linspace(3,15,numfrex);
     for fi in range(numfrex):
-        pi = np.pi
-
-         # number of cycles
-        numcyc = np.linspace(3,15,numfrex);
-
         # create time-domain wavelet
         s = numcyc[fi] / (2*pi*frex[fi])
         twoSsquared = (2*s) ** 2
