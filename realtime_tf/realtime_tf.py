@@ -2,13 +2,13 @@ import time
 from pylsl import StreamInlet, resolve_byprop
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fft import fft, ifft
 from collections import deque
 import argparse
+import sys
 
+from .time_frequency import time_frequency, get_cmwX
+from .constants import srate
 
-
-srate = 256
 
 class MuseLsl():
     def __init__(self):
@@ -99,72 +99,18 @@ def process_new_data(new_data, cmwX, nKern, frex,show_time_window, loops=0):
     plt.pause(0.01)  # pause a bit so that plots are updated
 
 
-def get_cmwX(nData, freqrange=[1,40], numfrex=42):
-    '''
-        returns cmwX of shape frequency x nConv
-    '''
-    pi = np.pi
-    wavtime = np.arange(-2,2-1/srate,1/srate)
-    nKern = len(wavtime)
-    nConv = nData + nKern - 1
-    frex = np.linspace(freqrange[0],freqrange[1],numfrex)
-   # create complex morlet wavelets array
-    cmwX = np.zeros((numfrex, nConv), dtype=complex)
+def main():
+    parser = argparse.ArgumentParser(description="Generate time-frequency plot of real-time EEG data.")
+    parser.add_argument("--show_time_window", type=float, default=2,
+                        help="The total time window for which to calculate the time-frequency plot.")
+    parser.add_argument("--update_time_window", type=float, default=0.2,
+                        help="The time window to update at each frame to the new data and calculate time frequency.")
+    args = parser.parse_args()
 
-    # number of cycles
-    numcyc = np.linspace(3,15,numfrex);
-    for fi in range(numfrex):
-        # create time-domain wavelet
-        s = numcyc[fi] / (2*pi*frex[fi])
-        twoSsquared = (2*s) ** 2
-        cmw = np.exp(2*1j*pi*frex[fi]*wavtime) * np.exp( (-wavtime**2) / twoSsquared )
+    run_muse(args.show_time_window, args.update_time_window)
 
 
-        # compute fourier coefficients of wavelet and normalize
-        cmwX[fi, :] = fft(cmw, nConv)
-        cmwX[fi, :] = cmwX[fi, :] / max(cmwX[fi, :])
-
-    return cmwX, nKern, frex
-
-def time_frequency(data, cmwX, nKern, channel_labels=None):
-    '''
-        creates a time frequency power plot of the data and plots it for
-        every channel
-        
-        data -> of shape channels x time
-        times -> the times array for the given data
-        freqrange -> extract only these frequencies (in Hz)
-        numfrex -> number of frequencies between lowest and highest
-
-        returns average time frequency plot and frequency range
-    '''
-    assert data.shape[0] < data.shape[1], "data shape incorrect"
-    assert channel_labels is None or len(channel_labels) == data.shape[0], "channel_labels must be of same length as number of channels"
-
-    # set up convolution parameters
-    nData   = data.shape[1]
-    nConv   = nData + nKern - 1
-    halfwav = (nKern-1)//2
-
-    # initialize time-frequency output matrix
-    tf = np.zeros((data.shape[0], cmwX.shape[0], data.shape[1])) # channels X frequency X times
-
-    # loop over channels
-    for chani in range(data.shape[0]):
-
-        # compute Fourier coefficients of EEG data (doesn't change over frequency!)
-        eegX = fft(data[chani, :] , nConv)
-
-        # perform convolution and extract power (vectorized across frequencies)
-        as_ = ifft(cmwX * eegX[None, :], axis=1)
-        as_ = as_[:, halfwav: -halfwav]
-        tf[chani, :, :] = np.abs(as_) ** 2
-        
-    tf = np.mean(tf, axis=0)
-
-    return tf
-
-def main(show_time_window, update_time_window):
+def run_muse(show_time_window, update_time_window):
     muse_lsl = MuseLsl()
     try:
         muse_lsl.connect()
@@ -175,14 +121,7 @@ def main(show_time_window, update_time_window):
         muse_lsl.disconnect()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generate time-frequency plot of real-time EEG data.")
-    parser.add_argument("--show_time_window", type=float, default=2,
-                        help="The total time window for which to calculate the time-frequency plot.")
-    parser.add_argument("--update_time_window", type=float, default=0.2,
-                        help="The time window to update at each frame to the new data and calculate time frequency.")
-    args = parser.parse_args()
-
     try:
-        main(args.show_time_window, args.update_time_window)
+        main()
     except Exception as e:
         print(f'An error occurred: {e}', file=sys.stderr)

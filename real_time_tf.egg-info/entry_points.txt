@@ -1,0 +1,2 @@
+[console_scripts]
+realtime_tf = realtime_tf.realtime_tf:main
