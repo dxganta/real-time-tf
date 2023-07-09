@@ -4,14 +4,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.fft import fft, ifft
 from collections import deque
+import argparse
+
 
 
 srate = 256
-# the total time window for which to calculate the time-frequency plot
-show_time_window = 2 # in seconds,
-
-# the time window to update at each frame to the new data and calculate time frequency
-update_time_window = 0.2 # in seconds
 
 class MuseLsl():
     def __init__(self):
@@ -41,7 +38,7 @@ class MuseLsl():
             self.inlet.close_stream()
             print('Disconnected from EEG stream.')
 
-    def read_data(self):
+    def read_data(self, show_time_window, update_time_window):
         if self.inlet is None:
             raise RuntimeError('Must be connected to EEG stream to read data.')
         
@@ -55,7 +52,7 @@ class MuseLsl():
             cmwX, nKern, frex = get_cmwX(nData)
             while True:
                
-                sample, timestamp = self.inlet.pull_sample()
+                sample, _ = self.inlet.pull_sample()
                 
                 if counter < update_time_window * srate:
                     temp_data.popleft()
@@ -64,7 +61,7 @@ class MuseLsl():
                 else:
                     
                     data = np.array(temp_data)[:,:4].T
-                    process_new_data(data, cmwX, nKern, frex, loops)
+                    process_new_data(data, cmwX, nKern, frex, show_time_window, loops)
                     
                     counter = 0
                     loops += update_time_window
@@ -82,7 +79,7 @@ plt.ion()
 fig.show()
 fig.canvas.draw()
 
-def process_new_data(new_data, cmwX, nKern, frex, loops=0):
+def process_new_data(new_data, cmwX, nKern, frex,show_time_window, loops=0):
     times = np.linspace(loops, show_time_window+loops, new_data.shape[1]) 
 
     # Perform the time-frequency analysis on new_data
@@ -167,13 +164,25 @@ def time_frequency(data, cmwX, nKern, channel_labels=None):
 
     return tf
 
-
-if __name__ == "__main__":
+def main(show_time_window, update_time_window):
     muse_lsl = MuseLsl()
     try:
         muse_lsl.connect()
-        muse_lsl.read_data()
+        muse_lsl.read_data(show_time_window, update_time_window)
     except Exception as e:
         print(f'An error occurred: {e}')
     finally:
         muse_lsl.disconnect()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate time-frequency plot of real-time EEG data.")
+    parser.add_argument("--show_time_window", type=float, default=2,
+                        help="The total time window for which to calculate the time-frequency plot.")
+    parser.add_argument("--update_time_window", type=float, default=0.2,
+                        help="The time window to update at each frame to the new data and calculate time frequency.")
+    args = parser.parse_args()
+
+    try:
+        main(args.show_time_window, args.update_time_window)
+    except Exception as e:
+        print(f'An error occurred: {e}', file=sys.stderr)
