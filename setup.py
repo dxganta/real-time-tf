@@ -22,3 +22,10 @@ setup(
         'scipy'
     ],
 )
+
+
+# todo:
+# Add documentation
+# Add more options to the time-frequency calculation (like channel selection instead of averaging channels)
+# Double check that the time-frequency algorithm is correct
+# Update the data on neuroslack channel

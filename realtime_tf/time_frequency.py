@@ -3,16 +3,24 @@ from scipy.fft import fft, ifft
 from .constants import srate
 
 def time_frequency(data, cmwX, nKern, channel_labels=None):
-    '''
-        creates a time frequency power plot of the data and plots it for
-        every channel
-        
-        data -> of shape channels x time
-        times -> the times array for the given data
-        freqrange -> extract only these frequencies (in Hz)
-        numfrex -> number of frequencies between lowest and highest
+    ''''
+    Function to calculate time-frequency representation of multichannel data.
 
-        returns average time frequency plot and frequency range
+    Parameters:
+    data : ndarray
+        The EEG data, array of shape (channels, time).
+    cmwX : ndarray
+        The Fourier coefficients of the complex Morlet wavelets, array of shape (frequencies, nConv).
+    nKern : int
+        The length of the wavelet kernel.
+    channel_labels : list, optional
+        The labels of the EEG channels. Must be the same length as the number of channels in the data.
+        If not provided, no channel labels will be used.
+
+    Returns:
+    tf : ndarray
+        The time-frequency representation of the data, array of shape (frequencies, time).
+        This is the average power across all channels.
     '''
     assert data.shape[0] < data.shape[1], "data shape incorrect"
     assert channel_labels is None or len(channel_labels) == data.shape[0], "channel_labels must be of same length as number of channels"
@@ -43,7 +51,23 @@ def time_frequency(data, cmwX, nKern, channel_labels=None):
 
 def get_cmwX(nData, freqrange=[1,40], numfrex=42):
     '''
-        returns cmwX of shape frequency x nConv
+    Function to calculate the Fourier coefficients of complex Morlet wavelets.
+
+    Parameters:
+    nData : int
+        The number of data points.
+    freqrange : list, optional
+        The range of frequencies to consider. Defaults to [1,40].
+    numfrex : int, optional
+        The number of frequencies between the lowest and highest frequency. Defaults to 42.
+
+    Returns:
+    cmwX : ndarray
+        The Fourier coefficients of the complex Morlet wavelets, array of shape (frequencies, nConv).
+    nKern : int
+        The length of the wavelet kernel.
+    frex : ndarray
+        The array of frequencies.
     '''
     pi = np.pi
     wavtime = np.arange(-2,2-1/srate,1/srate)
