@@ -18,6 +18,12 @@ First install [muselsl](https://github.com/alexandrebarachant/muse-lsl), connect
 muselsl stream
 ```
 
+Then install the realtime_tf package using
+
+```
+pip install real-time-tf
+```
+
 Keep the muselsl stream running and in a separate terminal run
 
 ```
