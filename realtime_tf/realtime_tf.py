@@ -67,7 +67,7 @@ class MuseLsl():
                     counter += 1
                 else:
                     
-                    data = np.array(temp_data)[:,:4].T
+                    data = np.array(temp_data)[:,:len(channel_labels)].T
                     self.plot_data(data, cmwX, nKern, frex, show_time_window, channel, loops )
                     
                     counter = 0
@@ -85,7 +85,7 @@ class MuseLsl():
             returns tf array and title
         '''
         if channel != 'avg':
-            assert int(channel) < 4, 'Channel numbers range from 0 to 3. Please input a valid number'
+            assert int(channel) < len(channel_labels), f'Channel numbers range from 0 to {len(channel_labels)}. Please input a valid number'
         
         match channel:            
             case 'avg':
