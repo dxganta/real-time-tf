@@ -6,7 +6,7 @@ long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="real-time-tf",
-    version="0.1.1",
+    version="0.1.2",
     description="Real time time frequency plotting of EEG data from the Muse headset.",
     keywords="muse time-frequency eeg fft neuroscience",
     url="https://github.com/dxganta/real-time-tf",
